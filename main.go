@@ -23,18 +23,23 @@ func main() {
 	var yesFlag bool
 	var mfaFlag bool
 	var profileFlag string
+	var authProfileFlag string
 	var versionFlag bool
 	var deleteFlag bool
 	flag.BoolVar(&yesFlag, "y", false, `Automatic "yes" to prompts.`)
 	flag.BoolVar(&mfaFlag, "mfa", false, "Use MFA.")
 	flag.BoolVar(&deleteFlag, "d", false, "Delete old key without deactivation.")
 	flag.StringVar(&profileFlag, "profile", "default", "The profile to use.")
+	flag.StringVar(&authProfileFlag, "auth-profile", "", "Use a different profile to authenticate.")
 	flag.BoolVar(&versionFlag, "version", false, "Print version number")
 	flag.Parse()
 
 	if versionFlag {
 		fmt.Println(version)
 		os.Exit(0)
+	}
+	if authProfileFlag == "" {
+		authProfileFlag = profileFlag
 	}
 
 	// Get credentials
@@ -47,6 +52,10 @@ func main() {
 		}
 		credentialsPath = fmt.Sprintf("%s/.aws/credentials", usr.HomeDir)
 	}
+
+	authCredentialsProvider := credentials.NewSharedCredentials(credentialsPath, authProfileFlag)
+	_, err := authCredentialsProvider.Get()
+	check(err)
 
 	credentialsProvider := credentials.NewSharedCredentials(credentialsPath, profileFlag)
 	creds, err := credentialsProvider.Get()
@@ -75,7 +84,7 @@ func main() {
 	// Create session
 	sess := session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
-		Profile:           profileFlag,
+		Profile:           authProfileFlag,
 	}))
 
 	// sts get-caller-identity
